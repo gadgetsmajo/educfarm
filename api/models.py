@@ -84,7 +84,7 @@ class SensorReading(models.Model):
 
 class PumpCommand(models.Model):
     """Separate model for pump control events — keeps sensor history clean."""
-    STATUS_CHOICES = [('On', 'On'), ('Off', 'Off')]
+    STATUS_CHOICES = [('On', 'On'), ('Off', 'Off'), ('Auto', 'Auto'), ('Wake', 'Wake')]
     
     device        = models.ForeignKey(Device, on_delete=models.CASCADE, related_name='pump_commands')
     command       = models.CharField(max_length=10, choices=STATUS_CHOICES)

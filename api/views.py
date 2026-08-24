@@ -512,15 +512,22 @@ class LiveDataView(APIView):
 
 
 class PumpControlView(APIView):
-    """Manually toggle pump for a device — records command separately from sensor data"""
+    """Queue manual pump commands or return the device to automatic irrigation."""
 
     def post(self, request):
         device_id  = request.data.get('device_id')
+        mode       = request.data.get('mode', 'manual')
         pump_on    = request.data.get('pump_on', False)
-        device     = get_object_or_404(Device, device_id=device_id, user=request.user)
+        if request.user.is_staff:
+            device = get_object_or_404(Device, device_id=device_id)
+        else:
+            device = get_object_or_404(Device, device_id=device_id, user=request.user)
         
         # Record pump command separately (not in sensor readings)
-        command_status = 'On' if pump_on else 'Off'
+        if mode == 'wake':
+            command_status = 'Wake'
+        else:
+            command_status = 'Auto' if mode == 'auto' else ('On' if pump_on else 'Off')
         PumpCommand.objects.create(
             device=device,
             command=command_status,
