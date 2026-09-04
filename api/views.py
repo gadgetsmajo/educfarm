@@ -4,7 +4,7 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework import status
 from django.shortcuts import get_object_or_404
 from django.conf import settings
-from .models import Device, Notification, FarmSettings, SensorReading, DailyAgriLog, LocationCache, PumpCommand, PlantProfile, SMSSettings, HardwareOrder
+from .models import Device, Notification, FarmSettings, SensorReading, DailyAgriLog, LocationCache, PumpCommand, PlantProfile, SMSSettings, HardwareOrder, InvestorApplication, BusinessRequest, PartnershipApplication
 from .intelligence import detect_season, get_crop_profile, compute_drying_rate, compute_smart_irrigation
 from .serializers import (
     DeviceSerializer, ConnectDeviceSerializer, NotificationSerializer,
@@ -138,32 +138,43 @@ class InvestorApplicationView(APIView):
         if amount <= 0:
             return Response({'detail': 'Investment amount must be greater than zero.'}, status=status.HTTP_400_BAD_REQUEST)
 
-        optional = {field: str(data.get(field, '')).strip() or 'Not provided' for field in ('organisation', 'phone', 'experience', 'message')}
-        message = (
-            'New investor application\n'
-            f'Name: {values["name"]}\n'
-            f'Organisation: {optional["organisation"]}\n'
-            f'Email: {values["email"]}\n'
-            f'Phone: {optional["phone"]}\n'
-            f'Location: {values["location"]}, Village/Parish: {values["village_parish"]}, {values["country"]}\n'
-            f'Planned investment: {values["currency"]} {amount:,.2f}\n'
-            f'Source of funds: {values["source"]}\n'
-            f'Timeline: {values["timeline"]}\n'
-            f'Experience: {optional["experience"]}\n'
-            f'Message: {optional["message"]}'
+        optional = {field: str(data.get(field, '')).strip() for field in ('organisation', 'phone', 'experience', 'message')}
+
+        InvestorApplication.objects.create(
+            name=values['name'], organisation=optional['organisation'],
+            email=values['email'], phone=optional['phone'],
+            location=values['location'], village_parish=values['village_parish'],
+            country=values['country'], amount=amount, currency=values['currency'],
+            source=values['source'], timeline=values['timeline'],
+            experience=optional['experience'], message=optional['message'],
         )
 
+        message = (
+            'New investor application\n'
+            f'Name: {values["name"]}\nOrganisation: {optional["organisation"] or "Not provided"}\n'
+            f'Email: {values["email"]}\nPhone: {optional["phone"] or "Not provided"}\n'
+            f'Location: {values["location"]}, {values["village_parish"]}, {values["country"]}\n'
+            f'Planned investment: {values["currency"]} {amount:,.2f}\nSource: {values["source"]}\nTimeline: {values["timeline"]}'
+        )
         from users.models import User
-        admins = User.objects.filter(is_staff=True)
-        for admin in admins:
-            Notification.objects.create(
-                user=admin,
-                type='system',
-                title=f'New Investor Application: {values["name"]}',
-                message=message,
-            )
+        for admin in User.objects.filter(is_staff=True):
+            Notification.objects.create(user=admin, type='system', title=f'New Investor Application: {values["name"]}', message=message)
 
         return Response({'detail': 'Investor application submitted.'}, status=status.HTTP_201_CREATED)
+
+
+class InvestorApplicationListView(APIView):
+    """GET /api/investor-applications/list/ — admin only."""
+    def get(self, request):
+        apps = InvestorApplication.objects.all()
+        return Response([{
+            'id': a.id, 'name': a.name, 'organisation': a.organisation,
+            'email': a.email, 'phone': a.phone, 'location': a.location,
+            'village_parish': a.village_parish, 'country': a.country,
+            'amount': a.amount, 'currency': a.currency, 'source': a.source,
+            'timeline': a.timeline, 'experience': a.experience, 'message': a.message,
+            'created_at': a.created_at.isoformat(),
+        } for a in apps])
 
 
 class BusinessRequestView(APIView):
@@ -182,27 +193,41 @@ class BusinessRequestView(APIView):
         if values['request_type'] not in self.ALLOWED_REQUEST_TYPES:
             return Response({'detail': 'Invalid request type.'}, status=status.HTTP_400_BAD_REQUEST)
 
-        message = (
-            'New business request\n'
-            f'Name: {values["name"]}\n'
-            f'Organisation: {str(data.get("organisation", "")).strip() or "Not provided"}\n'
-            f'Email: {values["email"]}\n'
-            f'Phone: {str(data.get("phone", "")).strip() or "Not provided"}\n'
-            f'Location: {values["location"]}, Village/Parish: {values["village_parish"]}, {values["country"]}\n'
-            f'Request type: {values["request_type"]}\n'
-            f'Message: {values["message"]}'
+        optional = {f: str(data.get(f, '')).strip() for f in ('organisation', 'phone')}
+
+        BusinessRequest.objects.create(
+            name=values['name'], organisation=optional['organisation'],
+            email=values['email'], phone=optional['phone'],
+            location=values['location'], village_parish=values['village_parish'],
+            country=values['country'], request_type=values['request_type'],
+            message=values['message'],
         )
 
+        message = (
+            'New business request\n'
+            f'Name: {values["name"]}\nOrganisation: {optional["organisation"] or "Not provided"}\n'
+            f'Email: {values["email"]}\nPhone: {optional["phone"] or "Not provided"}\n'
+            f'Location: {values["location"]}, {values["village_parish"]}, {values["country"]}\n'
+            f'Request type: {values["request_type"]}\nMessage: {values["message"]}'
+        )
         from users.models import User
         for admin in User.objects.filter(is_staff=True):
-            Notification.objects.create(
-                user=admin,
-                type='system',
-                title=f'New Business Request: {values["request_type"]}',
-                message=message,
-            )
+            Notification.objects.create(user=admin, type='system', title=f'New Business Request: {values["request_type"]}', message=message)
 
         return Response({'detail': 'Request submitted.'}, status=status.HTTP_201_CREATED)
+
+
+class BusinessRequestListView(APIView):
+    """GET /api/business-requests/list/ — admin only."""
+    def get(self, request):
+        reqs = BusinessRequest.objects.all()
+        return Response([{
+            'id': r.id, 'name': r.name, 'organisation': r.organisation,
+            'email': r.email, 'phone': r.phone, 'location': r.location,
+            'village_parish': r.village_parish, 'country': r.country,
+            'request_type': r.request_type, 'message': r.message,
+            'created_at': r.created_at.isoformat(),
+        } for r in reqs])
 
 
 class PartnershipApplicationView(APIView):
@@ -218,35 +243,46 @@ class PartnershipApplicationView(APIView):
         if missing:
             return Response({'detail': f'Missing required fields: {", ".join(missing)}.'}, status=status.HTTP_400_BAD_REQUEST)
 
-        optional = {field: str(data.get(field, '')).strip() or 'Not provided' for field in (
-            'organisation', 'phone', 'website', 'business_area', 'products', 'markets', 'capacity')}
-        message = (
-            'New partnership application\n'
-            f'Contact: {values["name"]}\n'
-            f'Organisation: {optional["organisation"]}\n'
-            f'Email: {values["email"]}\n'
-            f'Phone: {optional["phone"]}\n'
-            f'Location: {values["location"]}, Village/Parish: {values["village_parish"]}, {values["country"]}\n'
-            f'Partner type: {values["partner_type"]}\n'
-            f'Business area: {optional["business_area"]}\n'
-            f'Products or services: {optional["products"]}\n'
-            f'Target markets: {optional["markets"]}\n'
-            f'Capacity or reach: {optional["capacity"]}\n'
-            f'Website: {optional["website"]}\n'
-            f'Partnership interest: {values["interest"]}\n'
-            f'Message: {values["message"]}'
+        optional = {f: str(data.get(f, '')).strip() for f in ('organisation', 'phone', 'website', 'business_area', 'products', 'markets', 'capacity')}
+
+        PartnershipApplication.objects.create(
+            name=values['name'], organisation=optional['organisation'],
+            email=values['email'], phone=optional['phone'],
+            location=values['location'], village_parish=values['village_parish'],
+            country=values['country'], partner_type=values['partner_type'],
+            business_area=optional['business_area'], products=optional['products'],
+            markets=optional['markets'], capacity=optional['capacity'],
+            website=optional['website'], interest=values['interest'],
+            message=values['message'],
         )
 
+        message = (
+            'New partnership application\n'
+            f'Contact: {values["name"]}\nOrganisation: {optional["organisation"] or "Not provided"}\n'
+            f'Email: {values["email"]}\nPhone: {optional["phone"] or "Not provided"}\n'
+            f'Location: {values["location"]}, {values["village_parish"]}, {values["country"]}\n'
+            f'Partner type: {values["partner_type"]}\nInterest: {values["interest"]}'
+        )
         from users.models import User
         for admin in User.objects.filter(is_staff=True):
-            Notification.objects.create(
-                user=admin,
-                type='system',
-                title=f'New Partnership Application: {values["partner_type"]}',
-                message=message,
-            )
+            Notification.objects.create(user=admin, type='system', title=f'New Partnership Application: {values["partner_type"]}', message=message)
 
         return Response({'detail': 'Partnership application submitted.'}, status=status.HTTP_201_CREATED)
+
+
+class PartnershipApplicationListView(APIView):
+    """GET /api/partnership-applications/list/ — admin only."""
+    def get(self, request):
+        apps = PartnershipApplication.objects.all()
+        return Response([{
+            'id': a.id, 'name': a.name, 'organisation': a.organisation,
+            'email': a.email, 'phone': a.phone, 'location': a.location,
+            'village_parish': a.village_parish, 'country': a.country,
+            'partner_type': a.partner_type, 'business_area': a.business_area,
+            'products': a.products, 'markets': a.markets, 'capacity': a.capacity,
+            'website': a.website, 'interest': a.interest, 'message': a.message,
+            'created_at': a.created_at.isoformat(),
+        } for a in apps])
 
 class HealthCheckView(APIView):
     permission_classes = [AllowAny]

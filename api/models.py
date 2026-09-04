@@ -239,6 +239,73 @@ class SMSSettings(models.Model):
         return f'{self.user.email} — SMS {"on" if self.sms_enabled else "off"}'
 
 
+class InvestorApplication(models.Model):
+    name           = models.CharField(max_length=150)
+    organisation   = models.CharField(max_length=200, blank=True)
+    email          = models.EmailField()
+    phone          = models.CharField(max_length=30, blank=True)
+    location       = models.CharField(max_length=200)
+    village_parish = models.CharField(max_length=200)
+    country        = models.CharField(max_length=100)
+    amount         = models.FloatField()
+    currency       = models.CharField(max_length=10)
+    source         = models.CharField(max_length=100)
+    timeline       = models.CharField(max_length=100)
+    experience     = models.TextField(blank=True)
+    message        = models.TextField(blank=True)
+    created_at     = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f'{self.name} — {self.currency} {self.amount}'
+
+
+class BusinessRequest(models.Model):
+    name           = models.CharField(max_length=150)
+    organisation   = models.CharField(max_length=200, blank=True)
+    email          = models.EmailField()
+    phone          = models.CharField(max_length=30, blank=True)
+    location       = models.CharField(max_length=200)
+    village_parish = models.CharField(max_length=200)
+    country        = models.CharField(max_length=100)
+    request_type   = models.CharField(max_length=100)
+    message        = models.TextField()
+    created_at     = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f'{self.name} — {self.request_type}'
+
+
+class PartnershipApplication(models.Model):
+    name           = models.CharField(max_length=150)
+    organisation   = models.CharField(max_length=200, blank=True)
+    email          = models.EmailField()
+    phone          = models.CharField(max_length=30, blank=True)
+    location       = models.CharField(max_length=200)
+    village_parish = models.CharField(max_length=200)
+    country        = models.CharField(max_length=100)
+    partner_type   = models.CharField(max_length=100)
+    business_area  = models.CharField(max_length=200, blank=True)
+    products       = models.TextField(blank=True)
+    markets        = models.CharField(max_length=200, blank=True)
+    capacity       = models.TextField(blank=True)
+    website        = models.URLField(blank=True)
+    interest       = models.TextField()
+    message        = models.TextField(blank=True)
+    created_at     = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f'{self.name} — {self.partner_type}'
+
+
 class HardwareOrder(models.Model):
     KIT_CHOICES = [
         ('basic',    'Basic Kit — UGX 700,000'),

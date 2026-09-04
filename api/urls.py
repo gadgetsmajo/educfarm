@@ -10,7 +10,10 @@ from .views import (
     SensorIngestView, LiveDataView, PumpControlView, PumpCommandPollView, IntelligenceView,
     PlantProfilesView, SMSSettingsView,
     VapidKeyView, PushSubscribeView, PushUnsubscribeView, BadgeView, TestPushView,
-    HardwareOrderView, HardwareOrderListView, HardwareOrderDetailView, InvestorApplicationView, BusinessRequestView, PartnershipApplicationView,
+    HardwareOrderView, HardwareOrderListView, HardwareOrderDetailView,
+    InvestorApplicationView, InvestorApplicationListView,
+    BusinessRequestView, BusinessRequestListView,
+    PartnershipApplicationView, PartnershipApplicationListView,
 )
 
 urlpatterns = [
@@ -49,8 +52,11 @@ urlpatterns = [
     path('orders/hardware/list/',          HardwareOrderListView.as_view(),        name='hardware-order-list'),
     path('orders/hardware/<int:pk>/',      HardwareOrderDetailView.as_view(),      name='hardware-order-detail'),
     path('investor-applications/',         InvestorApplicationView.as_view(),      name='investor-application'),
+    path('investor-applications/list/',    InvestorApplicationListView.as_view(),  name='investor-application-list'),
     path('business-requests/',             BusinessRequestView.as_view(),          name='business-request'),
+    path('business-requests/list/',        BusinessRequestListView.as_view(),      name='business-request-list'),
     path('partnership-applications/',      PartnershipApplicationView.as_view(),   name='partnership-application'),
+    path('partnership-applications/list/', PartnershipApplicationListView.as_view(), name='partnership-application-list'),
 
     path('device/settings/',               DeviceSettingsView.as_view(),           name='device-settings'),
     path('device/activate/',               DeviceActivateView.as_view(),           name='device-activate'),
