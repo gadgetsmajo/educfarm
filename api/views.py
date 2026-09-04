@@ -117,6 +117,93 @@ class HardwareOrderView(APIView):
             'whatsapp_url':  whatsapp_url,
         }, status=status.HTTP_201_CREATED)
 
+
+class InvestorApplicationView(APIView):
+    """POST /api/investor-applications/ — submit an investor application."""
+    permission_classes = [AllowAny]
+
+    REQUIRED_FIELDS = ('name', 'email', 'location', 'country', 'amount', 'currency', 'source', 'timeline')
+
+    def post(self, request):
+        data = request.data
+        values = {field: str(data.get(field, '')).strip() for field in self.REQUIRED_FIELDS}
+        missing = [field for field, value in values.items() if not value]
+        if missing:
+            return Response({'detail': f'Missing required fields: {", ".join(missing)}.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            amount = float(values['amount'])
+        except ValueError:
+            return Response({'detail': 'Investment amount must be a number.'}, status=status.HTTP_400_BAD_REQUEST)
+        if amount <= 0:
+            return Response({'detail': 'Investment amount must be greater than zero.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        optional = {field: str(data.get(field, '')).strip() or 'Not provided' for field in ('organisation', 'phone', 'experience', 'message')}
+        message = (
+            'New investor application\n'
+            f'Name: {values["name"]}\n'
+            f'Organisation: {optional["organisation"]}\n'
+            f'Email: {values["email"]}\n'
+            f'Phone: {optional["phone"]}\n'
+            f'Location: {values["location"]}, {values["country"]}\n'
+            f'Planned investment: {values["currency"]} {amount:,.2f}\n'
+            f'Source of funds: {values["source"]}\n'
+            f'Timeline: {values["timeline"]}\n'
+            f'Experience: {optional["experience"]}\n'
+            f'Message: {optional["message"]}'
+        )
+
+        from users.models import User
+        admins = User.objects.filter(is_staff=True)
+        for admin in admins:
+            Notification.objects.create(
+                user=admin,
+                type='system',
+                title=f'New Investor Application: {values["name"]}',
+                message=message,
+            )
+
+        return Response({'detail': 'Investor application submitted.'}, status=status.HTTP_201_CREATED)
+
+
+class BusinessRequestView(APIView):
+    """POST /api/business-requests/ — submit a partner or information request."""
+    permission_classes = [AllowAny]
+
+    REQUIRED_FIELDS = ('name', 'email', 'location', 'country', 'request_type', 'message')
+    ALLOWED_REQUEST_TYPES = ('Strategic Partnership', 'Distribution Opportunity', 'Other')
+
+    def post(self, request):
+        data = request.data
+        values = {field: str(data.get(field, '')).strip() for field in self.REQUIRED_FIELDS}
+        missing = [field for field, value in values.items() if not value]
+        if missing:
+            return Response({'detail': f'Missing required fields: {", ".join(missing)}.'}, status=status.HTTP_400_BAD_REQUEST)
+        if values['request_type'] not in self.ALLOWED_REQUEST_TYPES:
+            return Response({'detail': 'Invalid request type.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        message = (
+            'New business request\n'
+            f'Name: {values["name"]}\n'
+            f'Organisation: {str(data.get("organisation", "")).strip() or "Not provided"}\n'
+            f'Email: {values["email"]}\n'
+            f'Phone: {str(data.get("phone", "")).strip() or "Not provided"}\n'
+            f'Location: {values["location"]}, {values["country"]}\n'
+            f'Request type: {values["request_type"]}\n'
+            f'Message: {values["message"]}'
+        )
+
+        from users.models import User
+        for admin in User.objects.filter(is_staff=True):
+            Notification.objects.create(
+                user=admin,
+                type='system',
+                title=f'New Business Request: {values["request_type"]}',
+                message=message,
+            )
+
+        return Response({'detail': 'Request submitted.'}, status=status.HTTP_201_CREATED)
+
 class HealthCheckView(APIView):
     permission_classes = [AllowAny]
 
