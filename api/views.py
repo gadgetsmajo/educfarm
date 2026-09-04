@@ -122,7 +122,7 @@ class InvestorApplicationView(APIView):
     """POST /api/investor-applications/ — submit an investor application."""
     permission_classes = [AllowAny]
 
-    REQUIRED_FIELDS = ('name', 'email', 'location', 'country', 'amount', 'currency', 'source', 'timeline')
+    REQUIRED_FIELDS = ('name', 'email', 'location', 'village_parish', 'country', 'amount', 'currency', 'source', 'timeline')
 
     def post(self, request):
         data = request.data
@@ -145,7 +145,7 @@ class InvestorApplicationView(APIView):
             f'Organisation: {optional["organisation"]}\n'
             f'Email: {values["email"]}\n'
             f'Phone: {optional["phone"]}\n'
-            f'Location: {values["location"]}, {values["country"]}\n'
+            f'Location: {values["location"]}, Village/Parish: {values["village_parish"]}, {values["country"]}\n'
             f'Planned investment: {values["currency"]} {amount:,.2f}\n'
             f'Source of funds: {values["source"]}\n'
             f'Timeline: {values["timeline"]}\n'
@@ -170,7 +170,7 @@ class BusinessRequestView(APIView):
     """POST /api/business-requests/ — submit a partner or information request."""
     permission_classes = [AllowAny]
 
-    REQUIRED_FIELDS = ('name', 'email', 'location', 'country', 'request_type', 'message')
+    REQUIRED_FIELDS = ('name', 'email', 'location', 'village_parish', 'country', 'request_type', 'message')
     ALLOWED_REQUEST_TYPES = ('Strategic Partnership', 'Distribution Opportunity', 'Other')
 
     def post(self, request):
@@ -188,7 +188,7 @@ class BusinessRequestView(APIView):
             f'Organisation: {str(data.get("organisation", "")).strip() or "Not provided"}\n'
             f'Email: {values["email"]}\n'
             f'Phone: {str(data.get("phone", "")).strip() or "Not provided"}\n'
-            f'Location: {values["location"]}, {values["country"]}\n'
+            f'Location: {values["location"]}, Village/Parish: {values["village_parish"]}, {values["country"]}\n'
             f'Request type: {values["request_type"]}\n'
             f'Message: {values["message"]}'
         )
@@ -203,6 +203,50 @@ class BusinessRequestView(APIView):
             )
 
         return Response({'detail': 'Request submitted.'}, status=status.HTTP_201_CREATED)
+
+
+class PartnershipApplicationView(APIView):
+    """POST /api/partnership-applications/ — submit a partnership application."""
+    permission_classes = [AllowAny]
+
+    REQUIRED_FIELDS = ('name', 'email', 'location', 'village_parish', 'country', 'partner_type', 'interest', 'message')
+
+    def post(self, request):
+        data = request.data
+        values = {field: str(data.get(field, '')).strip() for field in self.REQUIRED_FIELDS}
+        missing = [field for field, value in values.items() if not value]
+        if missing:
+            return Response({'detail': f'Missing required fields: {", ".join(missing)}.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        optional = {field: str(data.get(field, '')).strip() or 'Not provided' for field in (
+            'organisation', 'phone', 'website', 'business_area', 'products', 'markets', 'capacity')}
+        message = (
+            'New partnership application\n'
+            f'Contact: {values["name"]}\n'
+            f'Organisation: {optional["organisation"]}\n'
+            f'Email: {values["email"]}\n'
+            f'Phone: {optional["phone"]}\n'
+            f'Location: {values["location"]}, Village/Parish: {values["village_parish"]}, {values["country"]}\n'
+            f'Partner type: {values["partner_type"]}\n'
+            f'Business area: {optional["business_area"]}\n'
+            f'Products or services: {optional["products"]}\n'
+            f'Target markets: {optional["markets"]}\n'
+            f'Capacity or reach: {optional["capacity"]}\n'
+            f'Website: {optional["website"]}\n'
+            f'Partnership interest: {values["interest"]}\n'
+            f'Message: {values["message"]}'
+        )
+
+        from users.models import User
+        for admin in User.objects.filter(is_staff=True):
+            Notification.objects.create(
+                user=admin,
+                type='system',
+                title=f'New Partnership Application: {values["partner_type"]}',
+                message=message,
+            )
+
+        return Response({'detail': 'Partnership application submitted.'}, status=status.HTTP_201_CREATED)
 
 class HealthCheckView(APIView):
     permission_classes = [AllowAny]
