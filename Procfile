@@ -1,1 +1,1 @@
-web: python manage.py reset_db && python manage.py migrate && python manage.py collectstatic --noinput && python manage.py create_admin $ADMIN_EMAIL $ADMIN_PASSWORD --name EducFarm && gunicorn config.wsgi:application
+web: gunicorn config.wsgi:application --bind 0.0.0.0:$PORT
